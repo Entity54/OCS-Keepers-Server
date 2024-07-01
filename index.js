@@ -31,6 +31,7 @@ const deploymentData = require('./DeploymentData.json');
 // ************************** KEYS **************************//
 const RPC_BASE_KEY = process.env.VITE_RPC_BASE_KEY;
 const PRIVATE_KEY = process.env.VITE_PRIVATE_KEY;
+// const PRIVATE_KEY = process.env.VITE_PRIVATE_KEY2;
 const public_signer = new Wallet(PRIVATE_KEY);   
 // ************************** //
 
@@ -76,7 +77,7 @@ const setupContracts = async () => {
 			chain.contracts =
 			{
 				CampaignManager: new ethers.Contract( deploymentData["CampaignManager"][chain.chainName]["address"] , CampaignManager_raw.abi , chain.chainWallet ), 
-				InfuencersManager: new ethers.Contract( deploymentData["InfuencersManager"][chain.chainName]["address"] , InfuencersManager_raw.abi , chain.chainWallet ),
+				InfuencersManager: new ethers.Contract( deploymentData["InfluencersManager"][chain.chainName]["address"] , InfuencersManager_raw.abi , chain.chainWallet ),
 				CampaignAssets: new ethers.Contract( deploymentData["CampaignAssets"][chain.chainName]["address"] , CampaignAssets_raw.abi , chain.chainWallet ),
 				SquawkProcessor: new ethers.Contract( deploymentData["SquawkProcessor"][chain.chainName]["address"] , SquawkProcessor_raw.abi , chain.chainWallet ),
 			};
@@ -131,7 +132,7 @@ app.post('/', async (req, res, next) => {
   const body = req.body;
   console.log(` *******> body: `,body);
 
-  // const timestamp = moment().format('YYYY-MM-DD HH:mm:ss'); // Format timestamp
+  const timestamp = moment().format('YYYY-MM-DD HH:mm:ss'); // Format timestamp
 
   // const run_verifications = async (body,req) => {
   //     let _postActions = [];
@@ -161,7 +162,7 @@ app.post('/', async (req, res, next) => {
   //   processedPosts = processedPosts.slice(0, 20);
   // }
 
-  console.log(`THIS PRINTS AT THE END OF PROCESSING DATA`);
+  // console.log(`THIS PRINTS AT THE END OF PROCESSING DATA`);
 
   // Respond with success message
   res.status(201).send('Post received and processed successfully');
@@ -446,196 +447,360 @@ const processSquawkData = async (SquawkProcessor) => {
 
 
 //#region
-const runAutomations = async (provider_Sepolia, CampaignManager_Sepolia, SquawkProcessor_Sepolia) => {
+const runAutomations = async (provider_Sepolia, CampaignManager_Sepolia, SquawkProcessor_Sepolia, chain_id_num) => {
 
-            console.log(` ******************** Timestamp ${ new Date().toISOString()} counter: ${++counter} ********************`);
-                
+  let _postActions = [], msg = "";
+  const chainName = chainSpecs[chain_id_num].chainName;
+  const CampaignManager_address = deploymentData["CampaignManager"][chainName]["address"];
+  const SquawkProcessor_address = deploymentData["SquawkProcessor"][chainName]["address"];
+
+
+
+
+
+            msg = ` *** CHAIN NAME: ${chainName.toUpperCase()}  Timestamp ${ new Date().toISOString()} counter: ${++counter} CampaignManager_address: ${CampaignManager_address} SquawkProcessor_address: ${SquawkProcessor_address} *** `;
+            console.log(msg);
+_postActions.push({message: msg});
+
             //#region Sepolia
             const latestBlock = await provider_Sepolia.getBlock('latest'); // Fetch the latest block
             const latestBlockTime = latestBlock.timestamp; // Retrieve the timestamp of the latest block
             const date = new Date(latestBlockTime * 1000); // Convert the timestamp to a readable date
-            console.log(`SEPOLIA: latestBlockTime ${latestBlockTime}`);
+            
+            msg = `latestBlockTime ${latestBlockTime}`;
+            console.log(msg);
+_postActions.push({message: msg});
 
 
             //#region startTimes_Sepolia AUTOMATION 1
             const startTimes_Sepolia = await get_startTimes(CampaignManager_Sepolia); // get campaign manager start times
-            console.log(`SEPOLIA: startTimes_Sepolia: `,startTimes_Sepolia);
+            
+            msg = `startTimes: ${JSON.stringify(startTimes_Sepolia)}`;
+            console.log(msg);
+_postActions.push({message: msg});
 
 
             if (startTimes_Sepolia.length > 0) {
 
               let ready_startTimeIndex, ready_startTime, ready_campaign_uuid;
 
-              console.log("CHECK POINT 1 startTimes_Sepolia");
+              msg = "CHECK POINT 1 startTimes"
+              console.log(msg);
+_postActions.push({message: msg});
+
               
               for (let i=0; i<startTimes_Sepolia.length; i++) {
 
                 if (latestBlockTime >= startTimes_Sepolia[i]) {
                   ready_startTimeIndex = i; ready_startTime=startTimes_Sepolia[i];
-                  console.log(`   SEPOLIA: Campaign with startTime: ${ready_startTime} and index: ${ready_startTimeIndex} is ready to start`);
+
+                  msg = `Campaign with startTime: ${ready_startTime} and index: ${ready_startTimeIndex} is ready to start`;
+                  console.log(msg);
+_postActions.push({message: msg});
                   break;
                 }
 
               }
 
-              console.log(`CHECK POINT 2 startTimes_Sepolia ready_startTimeIndex: ${ready_startTimeIndex} ready_startTime: ${ready_startTime}`);
+
+              msg = `CHECK POINT 2 startTimes ready_startTimeIndex: ${ready_startTimeIndex} ready_startTime: ${ready_startTime}`;
+              console.log(msg);
+_postActions.push({message: msg});
 
 
               if (ready_startTime > 0) {
 
-                console.log("CHECK POINT 3 startTimes_Sepolia");
+                msg = "CHECK POINT 3 startTimes";
+                console.log(msg);
+_postActions.push({message: msg});
+
 
                 const pendingCampaignUIDs = await getPendingCampaigns(CampaignManager_Sepolia);  //get pending campaigns
 
-                console.log("CHECK POINT 4 startTimes_Sepolia");
+                msg = `CHECK POINT 4 startTimes pendingCampaignUIDs: ${JSON.stringify(pendingCampaignUIDs)}`;
+                console.log(msg);
+_postActions.push({message: msg});
+
 
                 for (let i=0; i<pendingCampaignUIDs.length; i++) {
                   const campaign_uuid = pendingCampaignUIDs[i];
                   const campaignSpecs = await get_Campaign_Specs(CampaignManager_Sepolia, campaign_uuid);
                   const campaignStartTime = Number(`${campaignSpecs.startTime}`)
-                  console.log(`   SEPOLIA: campaignStartTime: ${campaignStartTime}`);
 
-                  console.log("CHECK POINT 5 startTimes_Sepolia");
+
+                  msg = `CHECK POINT 5 startTimes campaignStartTime: ${campaignStartTime}`;
+                  console.log(msg);
+_postActions.push({message: msg});
+
 
                   if (campaignStartTime <= ready_startTime) {
-                      console.log(`   SEPOLIA: Campaign with startTime: ${campaignStartTime} and campaign_uuid: ${campaign_uuid} is ready to start`);
+
+                      msg = `Campaign with startTime: ${campaignStartTime} and campaign_uuid: ${campaign_uuid} is ready to start`;
+                      console.log(msg);
+_postActions.push({message: msg});
+
+
                       ready_campaign_uuid = `${campaign_uuid}`;
                       break;
                   }
 
-                  console.log("CHECK POINT 6 startTimes_Sepolia");
+
+                  msg = "CHECK POINT 6 startTimes";
+                  console.log(msg);
+_postActions.push({message: msg});
+
 
                 }
 
 
-                console.log("CHECK POINT 7 startTimes_Sepolia");
+
+                msg = "CHECK POINT 7 startTimes";
+                console.log(msg);
+_postActions.push({message: msg});
+
+
 
                 if (ready_campaign_uuid) {
-                      console.log(`   SEPOLIA: Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkPendingCampainStatus`);
+                      msg = `Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkPendingCampainStatus`;
+                      console.log(msg);
+_postActions.push({message: msg});
 
                       const response = await checkPendingCampainStatus(CampaignManager_Sepolia, ready_campaign_uuid);
-                      console.log(`   checkPendingCampainStatus response: `,response);
+                      
+                      msg= `checkPendingCampainStatus response: ${JSON.stringify(response)}`;
+                      console.log(msg);
+_postActions.push({message: msg});
 
 
                       if (response.msg === "OK") {
-                        console.log(`   deleteStartOrEndTime will run`);
+                        msg = `deleteStartOrEndTime will run`;
+                        console.log(msg);
+_postActions.push({message: msg});
+
                         const response2 = await deleteStartOrEndTime(CampaignManager_Sepolia, true, ready_startTimeIndex);
-                        console.log(`   deleteStartOrEndTime response2: `,response2);
+                        
+                        msg = `deleteStartOrEndTime response2: ${JSON.stringify(response2)}`;
+                        console.log(msg);
+_postActions.push({message: msg});
 
-                      } else console.log(`    SEPOLIA: checkPendingCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`);
+                      } else 
+                      {
+                        msg = `checkPendingCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`;
+                        console.log(msg);
+_postActions.push({message: msg});
+                      }
                       
-                } else console.log(`SEPOLIA: No Campaign is ready to start`);
+                } else 
+                {
+                  msg = `No Campaign is ready to start`;
+                  console.log(msg);
+_postActions.push({message: msg});
+                }
 
-                console.log("CHECK POINT 8 startTimes_Sepolia");
+                msg = "CHECK POINT 8 startTimes";
+                console.log(msg);
+_postActions.push({message: msg});
 
-              } else console.log(`SEPOLIA ready_startTime is null ready_startTime: ${ready_startTime} ready_startTimeIndex: ${ready_startTimeIndex}`);
+
+              } else 
+              {
+                msg = `ready_startTime is null ready_startTime: ${ready_startTime} ready_startTimeIndex: ${ready_startTimeIndex}`;
+                console.log(msg);
+_postActions.push({message: msg});
+              }
               
-
-              console.log("*** CHECK POINT FINAL for startTimes_Sepolia ***");
-            } else console.log(`SEPOLIA: startTimes_Sepolia is 0 length. No Pending Campaigns`);
+              msg = "*** CHECK POINT FINAL for startTimes ***";
+              console.log(msg);
+_postActions.push({message: msg});
+            } else 
+            {
+              msg = `startTimes is 0 length. No Pending Campaigns`;
+              console.log(msg);
+_postActions.push({message: msg});
+            }
             //#endregion
 
-
+_postActions.push({message: " "});
+_postActions.push({message: " "});
             console.log(`  `);
             console.log(`  `);
 
 
             //#region endTimes_Sepolia AUTOMATION 2
             const endTimes_Sepolia = await get_endTimes(CampaignManager_Sepolia); // get campaign manager start times
-            console.log(`SEPOLIA: endTimes_Sepolia: `,endTimes_Sepolia);
+           
+            msg = `endTimes: ${JSON.stringify(endTimes_Sepolia)}`;
+            console.log(msg);
+_postActions.push({message: msg});
+
 
             if (endTimes_Sepolia.length > 0) {
 
               let ready_endTimeIndex, ready_endTime, ready_campaign_uuid;
 
-              console.log("CHECK POINT 1 endTimes_Sepolia");
+              msg = "CHECK POINT 1 endTimes";
+              console.log(msg);
+_postActions.push({message: msg});
+
               
               for (let i=0; i<endTimes_Sepolia.length; i++) {
 
                 if (latestBlockTime >= endTimes_Sepolia[i]) {
                   ready_endTimeIndex = i; ready_endTime=endTimes_Sepolia[i];
-                  console.log(`   SEPOLIA: Campaign with endTime: ${ready_endTime} and index: ${ready_endTimeIndex} is ready to end`);
+
+                  msg = `Campaign with endTime: ${ready_endTime} and index: ${ready_endTimeIndex} is ready to end`;
+                  console.log(msg);
+_postActions.push({message: msg});
                   break;
                 }
 
               }
 
-              console.log(`CHECK POINT 2 endTimes_Sepolia ready_startTimeIndex: ${ready_endTimeIndex} ready_endTime: ${ready_endTime}`);
+              msg = `CHECK POINT 2 endTimes ready_endTimeIndex: ${ready_endTimeIndex} ready_endTime: ${ready_endTime}`;
+              console.log(msg);
+_postActions.push({message: msg});
 
 
               if (ready_endTime > 0) {
 
-                console.log("CHECK POINT 3 endTimes_Sepolia");
+                msg = "CHECK POINT 3 endTimes";
+                console.log(msg);
+_postActions.push({message: msg});
 
                 const activeCampaignUIDs = await getActiveCampaignUIDs(CampaignManager_Sepolia);  //get active campaigns
 
-                console.log("CHECK POINT 4 endTimes_Sepolia");
+                msg = `CHECK POINT 4 endTimes activeCampaignUIDs: ${JSON.stringify(activeCampaignUIDs)}`;
+                console.log(msg);
+_postActions.push({message: msg});
+
 
                 for (let i=0; i<activeCampaignUIDs.length; i++) {
                   const campaign_uuid = activeCampaignUIDs[i];
                   const campaignSpecs = await get_Campaign_Specs(CampaignManager_Sepolia, campaign_uuid);
                   const campaignEndTime = Number(`${campaignSpecs.endTime}`)
-                  console.log(`   SEPOLIA: campaignEndTime: ${campaignEndTime}`);
 
-                  console.log("CHECK POINT 5 endTimes_Sepolia");
+                  msg = `CHECK POINT 5 endTimes campaignEndTime: ${campaignEndTime}`;
+                  console.log(msg);
+_postActions.push({message: msg});
+
 
                   if (campaignEndTime <= ready_endTime) {
-                      console.log(`   SEPOLIA: Campaign with endTime: ${campaignEndTime} and campaign_uuid: ${campaign_uuid} is ready to end`);
+                      msg = `Campaign with endTime: ${campaignEndTime} and campaign_uuid: ${campaign_uuid} is ready to end`;
+                      console.log(msg);
+_postActions.push({message: msg});
+
                       ready_campaign_uuid = `${campaign_uuid}`;
                       break;
                   }
 
-                  console.log("CHECK POINT 6 endTimes_Sepolia");
-
+                  msg = "CHECK POINT 6 endTimes";
+                  console.log(msg);
+_postActions.push({message: msg});
                 }
 
 
-                console.log("CHECK POINT 7 endTimes_Sepolia");
+                msg = "CHECK POINT 7 endTimes";
+                console.log(msg);
+_postActions.push({message: msg});
+
 
                 if (ready_campaign_uuid) {
-                      console.log(`   SEPOLIA: Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkActiveCampainStatus`);
+                      msg = `Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkActiveCampainStatus`;
+                      console.log(msg);
+_postActions.push({message: msg});
 
                       const response = await checkActiveCampainStatus(CampaignManager_Sepolia, ready_campaign_uuid);
-                      console.log(`   checkActiveCampainStatus response: `,response);
+                      
+                      msg = `checkActiveCampainStatus response: ${JSON.stringify(response)}`;
+                      console.log(msg);
+_postActions.push({message: msg});
 
 
                       if (response.msg === "OK") {
-                        console.log(`   deleteStartOrEndTime will run`);
+
+                        msg = `deleteStartOrEndTime will run`;
+                        console.log(msg);
+_postActions.push({message: msg});  
+
                         const response2 = await deleteStartOrEndTime(CampaignManager_Sepolia, false, ready_endTimeIndex);
-                        console.log(`   deleteStartOrEndTime response2: `,response2);
 
-                      } else console.log(`    SEPOLIA: checkActiveCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`);
+                        msg = `deleteStartOrEndTime response2: ${JSON.stringify(response2)}`;
+                        console.log(msg);
+_postActions.push({message: msg});
+
+                      } else 
+                      {
+                        msg = `checkActiveCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`;
+                        console.log(msg);
+_postActions.push({message: msg});
+                      }
                       
-                } else console.log(`SEPOLIA: No Campaign is ready to end`);
+                } else 
+                {
+                  msg = `No Campaign is ready to end`;
+                  console.log(msg);
+_postActions.push({message: msg});
+                }
 
-                console.log("CHECK POINT 8 endTimes_Sepolia");
-
-              } else console.log(`SEPOLIA ready_endTime is null ready_endTime: ${ready_endTime} ready_endTimeIndex: ${ready_endTimeIndex}`);
+                msg = "CHECK POINT 8 endTimes";
+                console.log(msg);
+_postActions.push({message: msg});
+              } else 
+              {
+                msg = `ready_endTime is null ready_endTime: ${ready_endTime} ready_endTimeIndex: ${ready_endTimeIndex}`;
+                console.log(msg);
+_postActions.push({message: msg});
+              }
               
 
-              console.log("*** CHECK POINT FINAL for endTimes_Sepolia ***");
-            } else console.log(`SEPOLIA: endTimes_Sepolia is 0 length. No Active Campaigns`);
+              msg = "*** CHECK POINT FINAL for endTimes ***";
+              console.log(msg);
+_postActions.push({message: msg});
+              
+            } else 
+            {
+              msg = `endTimes_Sepolia is 0 length. No Active Campaigns`;
+              console.log(msg);
+_postActions.push({message: msg});
+            }
             //#endregion
 
 
+_postActions.push({message: " "});
+_postActions.push({message: " "});
             console.log(`  `);
             console.log(`  `);
 
 
             //#region Expired Campaigns AUTOMATION 3
-            console.log(`SEPOLIA: Expired Campaigns`);
+            msg = `Expired Campaigns`;
+            console.log(msg);
+_postActions.push({message: msg});
+             
             const expiredCampaignUIDs = await getExpiredCampaignUIDs(CampaignManager_Sepolia); 
-            console.log(`SEPOLIA: expiredCampaignUIDs: `,expiredCampaignUIDs);
+
+            msg = `expiredCampaignUIDs: ${JSON.stringify(expiredCampaignUIDs)}`;
+            console.log(msg);
+_postActions.push({message: msg});
+             
 
             if (expiredCampaignUIDs.length > 0) {
-              console.log(`CHECK POINT 1 SEPOLIA: Expired Campaigns are ${expiredCampaignUIDs.length}`);
+              msg = `CHECK POINT 1 Expired Campaigns are ${expiredCampaignUIDs.length}`;
+              console.log(msg);
+_postActions.push({message: msg});
 
               for (let i=0; i<expiredCampaignUIDs.length; i++) {
                 const campaign_uuid = expiredCampaignUIDs[i];
-                console.log(`CHECK POINT 2 SEPOLIA expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`);
+
+                msg = `CHECK POINT 2 expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`;
+                console.log(msg);
+_postActions.push({message: msg});
 
                 const is_CampaignDistributionComplete = await isCampaignDistributionComplete(CampaignManager_Sepolia, campaign_uuid);
-                console.log(`CHECK POINT 3 SEPOLIA: Expired campaign_uuid: ${campaign_uuid} is_CampaignDistributionComplete: ${is_CampaignDistributionComplete}`);
+                
+                msg = `CHECK POINT 3 Expired campaign_uuid: ${campaign_uuid} is_CampaignDistributionComplete: ${is_CampaignDistributionComplete}`;
+                console.log(msg);
+_postActions.push({message: msg});
 
                 // NOT NEEDED
                 // if (is_CampaignDistributionComplete) {
@@ -646,93 +811,160 @@ const runAutomations = async (provider_Sepolia, CampaignManager_Sepolia, SquawkP
                 
                 if (!is_CampaignDistributionComplete)
                 {
-                  console.log(`CHECK POINT 4 SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignDistributionComplete: ${is_CampaignDistributionComplete} will calculateDistributions`);
+                  msg = `CHECK POINT 4 Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignDistributionComplete: ${is_CampaignDistributionComplete} will calculateDistributions`;
+                  console.log(msg);
+_postActions.push({message: msg});
+                  
                   const response = await calculateDistributions(CampaignManager_Sepolia, campaign_uuid);
-                  console.log(`   calculateDistributions response: `,response);
+
+                  msg = `calculateDistributions response: ${JSON.stringify(response)}`;
+                  console.log(msg);
+_postActions.push({message: msg});
                 }
 
-                console.log(`CHECK POINT 5 SEPOLIA expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid} has finished calculateDistributions`);
+                msg = `CHECK POINT 5 expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid} has finished calculateDistributions`;
+                console.log(msg);
+_postActions.push({message: msg});
               }
 
-              console.log(`CHECK POINT 6 SEPOLIA End of Expired Campaigns Section`); 
-
-            } else console.log(`SEPOLIA: No Expired Campaigns`);
+              msg = `CHECK POINT 6 End of Expired Campaigns Section`;
+              console.log(msg);
+_postActions.push({message: msg});
+            } else 
+            {
+              msg = `No Expired Campaigns`;
+              console.log(msg);
+_postActions.push({message: msg});
+            }
             //#endregion
 
 
-            console.log(`  `);
-            console.log(`  `);
+            msg = " ********** ********** ********** ********** ********** ";
+            console.log(msg);
+_postActions.push({message: msg});
 
 
             //#region Ready For Payment Campaigns AUTOMATION 4  
-            console.log(`SEPOLIA: Ready For Payment Campaigns`);
+
+            msg = `Ready For Payment Campaigns`;
+            console.log(msg);
+_postActions.push({message: msg});
+           
             let readyFroPaymentCampaignUIDs = await getReadyFroPaymentCampaignUIDs(CampaignManager_Sepolia); 
-            console.log(`SEPOLIA: readyFroPaymentCampaignUIDs: `,readyFroPaymentCampaignUIDs);
+
+            msg = `readyFroPaymentCampaignUIDs: ${JSON.stringify(readyFroPaymentCampaignUIDs)}`;
+            console.log(msg);
+_postActions.push({message: msg});
+            
 
             if (readyFroPaymentCampaignUIDs.length > 0) {
-              console.log(`CHECK POINT 1 SEPOLIA: Ready For Payment Campaigns are ${readyFroPaymentCampaignUIDs.length}`);
 
-
+              msg = `CHECK POINT 1 Ready For Payment Campaigns are ${readyFroPaymentCampaignUIDs.length}`;
+              console.log(msg);
+_postActions.push({message: msg});
 
               for (let i=0; i<readyFroPaymentCampaignUIDs.length; i++) {
                 const campaign_uuid = readyFroPaymentCampaignUIDs[i];
-                console.log(`CHECK POINT 2 SEPOLIA readyFroPaymentCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`);
+
+                msg = `CHECK POINT 2 readyFroPaymentCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`;
+                console.log(msg);
+_postActions.push({message: msg});
 
                 const is_CampaignPaymentsComplete = await isCampaignPaymentsComplete(CampaignManager_Sepolia, campaign_uuid);
-                console.log(`CHECK POINT 3 SEPOLIA: Ready For Payment campaign_uuid: ${campaign_uuid} is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete}`);
-                
+
+                msg = `CHECK POINT 3 Ready For Payment campaign_uuid: ${campaign_uuid} is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete}`;
+                console.log(msg);
+_postActions.push({message: msg});
 
                 const camp = await get_Campaign_Specs(CampaignManager_Sepolia, campaign_uuid);  //for case of camp.state===4 i.e. VOID
 
 
-                if (!is_CampaignPaymentsComplete)
+                if (!is_CampaignPaymentsComplete && camp.state!==4)
                 {
-                  console.log(`CHECK POINT 4A SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete} and campaign.state: ${camp.state} will makePayments`);
+
+                  msg = `CHECK POINT 4A Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete} and campaign.state: ${camp.state} will makePayments`;
+                  console.log(msg);
+_postActions.push({message: msg});
+
                   const response = await makePayments(CampaignManager_Sepolia, campaign_uuid);
-                  console.log(`   makePayments response: `,response);
+
+                  msg = `makePayments response: ${JSON.stringify(response)}`;
+                  console.log(msg);
+_postActions.push({message: msg});
                 }
                 else if (is_CampaignPaymentsComplete || camp.state===4) {
-                  console.log(`CHECK POINT 4B SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete} and campaign.state: ${camp.state} will move to completedCampaignUIDs`);
+
+                  msg = `CHECK POINT 4B Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignPaymentsComplete: ${is_CampaignPaymentsComplete} and campaign.state: ${camp.state} will move to completedCampaignUIDs`;
+                  console.log(msg);
+_postActions.push({message: msg});
+
                   const response = await checkReadyForPaymentStatus(CampaignManager_Sepolia, campaign_uuid);
-                  console.log(`   checkReadyForPaymentStatus response: `,response);
+
+                  msg = `checkReadyForPaymentStatus response: ${JSON.stringify(response)}`;
+                  console.log(msg);
+_postActions.push({message: msg});
                 }
 
-                console.log(`CHECK POINT 5 SEPOLIA Ready For Payment campaign_uuid: ${campaign_uuid} has made payments`);
+                msg = `CHECK POINT 5 Ready For Payment campaign_uuid: ${campaign_uuid} has made payments`;
+                console.log(msg);
+_postActions.push({message: msg});
               }
 
-              console.log(`CHECK POINT 6 SEPOLIA End of  Ready For Payment Campaigns Section`); 
-
-            } else console.log(`SEPOLIA: No Ready For Payment Campaigns`);
+              msg = `CHECK POINT 6 End of Ready For Payment Campaigns Section`;
+              console.log(msg);
+_postActions.push({message: msg});
+            } else 
+            {
+              msg = `No Ready For Payment Campaigns`;
+              console.log(msg);
+_postActions.push({message: msg});
+            }
             //#endregion
 
 
-            console.log(`  `);
-            console.log(`  `);
+            msg = " ********** ********** ********** ********** ********** ";
+            console.log(msg);
+_postActions.push({message: msg});
 
 
             //#region SquawkProcessor processSquawkData  AUTOMATION 5   
-            console.log(`SEPOLIA: SquawkProcessor`);
+            msg = `SquawkProcessor`;
+            console.log(msg);
+_postActions.push({message: msg});
+             
             const {lastProcessedIndex, nonce} = await get_SquawkProcessor_nonce_lastProcessedIndex(SquawkProcessor_Sepolia); 
-            console.log(`SEPOLIA: SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`);
+
+            msg = `SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`;
+            console.log(msg);
+_postActions.push({message: msg});
 
             if (nonce >=1 && (lastProcessedIndex===0 || lastProcessedIndex+1 < nonce)) {
-              console.log(`CHECK POINT 1 SEPOLIA: SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`);
+
+              msg = `CHECK POINT 1 SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`;
+              console.log(msg);
+_postActions.push({message: msg});
+
               const response = await processSquawkData(SquawkProcessor_Sepolia);
-              console.log(`CHECK POINT 2 SEPOLIA: processSquawkData response: `,response);
-            } else console.log(`SEPOLIA: SquawkProcessor has no fresh data to process`);
+
+              msg = `CHECK POINT 2 processSquawkData response: ${JSON.stringify(response)}`;
+              console.log(msg);
+_postActions.push({message: msg});
+            } else 
+            {
+              msg = `SquawkProcessor has no fresh data to process`;
+              console.log(msg);
+_postActions.push({message: msg});
+            }
             //#endregion
 
 
-            console.log(`  `);
-            console.log(`  `);
+            msg = " |||********** ********** ********** ********** **********||| ";
+            console.log(msg);
+_postActions.push({message: msg});
             //#endregion Sepolia
 
 
-
-
-
-
-
+return _postActions;
 }
 //#endregion
 
@@ -779,295 +1011,31 @@ const startServer = async () => {
 
 
   const startProcess = async () => {
+    
+    let postActions1 = [], postActions2 = [];
 
-      await runAutomations(provider__Sepolia, CampaignManager__Sepolia, SquawkProcessor__Sepolia);
+    postActions1 = await runAutomations(provider__Sepolia, CampaignManager__Sepolia, SquawkProcessor__Sepolia, 84532);
 
-      // await runAutomations(provider_Base, CampaignManager_Base, SquawkProcessor_Base);
+    postActions2 = await runAutomations(provider_Base, CampaignManager_Base, SquawkProcessor_Base, 8453);
 
 
 
-      //#region IF THE runAutomations WORKS THEN THE BELOW CODE WILL BE REMOVED
-      // console.log(` ******************** Timestamp ${ new Date().toISOString()} counter: ${++counter} ********************`);
-      
-      // //#region Sepolia
-      // const latestBlock = await provider_Sepolia.getBlock('latest'); // Fetch the latest block
-      // const latestBlockTime = latestBlock.timestamp; // Retrieve the timestamp of the latest block
-      // const date = new Date(latestBlockTime * 1000); // Convert the timestamp to a readable date
-      // console.log(`SEPOLIA: latestBlockTime ${latestBlockTime}`);
+  // Store the processed data
+  processedPosts.push(...postActions1,...postActions2); 
+  // processedPosts.unshift(post); // Add the new post to the beginning of the array
 
+  // Keep only the latest 100 posts
+  if (processedPosts.length > 100) {
+    processedPosts = processedPosts.slice(-100);
+  }
 
-      // //#region startTimes_Sepolia AUTOMATION 1
-      // const startTimes_Sepolia = await get_startTimes(CampaignManager_Sepolia); // get campaign manager start times
-      // console.log(`SEPOLIA: startTimes_Sepolia: `,startTimes_Sepolia);
-
-
-      // if (startTimes_Sepolia.length > 0) {
-
-      //   let ready_startTimeIndex, ready_startTime, ready_campaign_uuid;
-
-      //   console.log("CHECK POINT 1 startTimes_Sepolia");
-        
-      //   for (let i=0; i<startTimes_Sepolia.length; i++) {
-
-      //     if (latestBlockTime >= startTimes_Sepolia[i]) {
-      //       ready_startTimeIndex = i; ready_startTime=startTimes_Sepolia[i];
-      //       console.log(`   SEPOLIA: Campaign with startTime: ${ready_startTime} and index: ${ready_startTimeIndex} is ready to start`);
-      //       break;
-      //     }
-
-      //   }
-
-      //   console.log(`CHECK POINT 2 startTimes_Sepolia ready_startTimeIndex: ${ready_startTimeIndex} ready_startTime: ${ready_startTime}`);
-
-
-      //   if (ready_startTime > 0) {
-
-      //     console.log("CHECK POINT 3 startTimes_Sepolia");
-
-      //     const pendingCampaignUIDs = await getPendingCampaigns(CampaignManager_Sepolia);  //get pending campaigns
-
-      //     console.log("CHECK POINT 4 startTimes_Sepolia");
-
-      //     for (let i=0; i<pendingCampaignUIDs.length; i++) {
-      //       const campaign_uuid = pendingCampaignUIDs[i];
-      //       const campaignSpecs = await get_Campaign_Specs(CampaignManager_Sepolia, campaign_uuid);
-      //       const campaignStartTime = Number(`${campaignSpecs.startTime}`)
-      //       console.log(`   SEPOLIA: campaignStartTime: ${campaignStartTime}`);
-
-      //       console.log("CHECK POINT 5 startTimes_Sepolia");
-
-      //       if (campaignStartTime <= ready_startTime) {
-      //           console.log(`   SEPOLIA: Campaign with startTime: ${campaignStartTime} and campaign_uuid: ${campaign_uuid} is ready to start`);
-      //           ready_campaign_uuid = `${campaign_uuid}`;
-      //           break;
-      //       }
-
-      //       console.log("CHECK POINT 6 startTimes_Sepolia");
-
-      //     }
-
-
-      //     console.log("CHECK POINT 7 startTimes_Sepolia");
-
-      //     if (ready_campaign_uuid) {
-      //           console.log(`   SEPOLIA: Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkPendingCampainStatus`);
-
-      //           const response = await checkPendingCampainStatus(CampaignManager_Sepolia, ready_campaign_uuid);
-      //           console.log(`   checkPendingCampainStatus response: `,response);
-
-
-      //           if (response.msg === "OK") {
-      //             console.log(`   deleteStartOrEndTime will run`);
-      //             const response2 = await deleteStartOrEndTime(CampaignManager_Sepolia, true, ready_startTimeIndex);
-      //             console.log(`   deleteStartOrEndTime response2: `,response2);
-
-      //           } else console.log(`    SEPOLIA: checkPendingCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`);
-                
-      //     } else console.log(`SEPOLIA: No Campaign is ready to start`);
-
-      //     console.log("CHECK POINT 8 startTimes_Sepolia");
-
-      //   } else console.log(`SEPOLIA ready_startTime is null ready_startTime: ${ready_startTime} ready_startTimeIndex: ${ready_startTimeIndex}`);
-        
-
-      //   console.log("*** CHECK POINT FINAL for startTimes_Sepolia ***");
-      // } else console.log(`SEPOLIA: startTimes_Sepolia is 0 length. No Pending Campaigns`);
-      // //#endregion
-
-
-      // console.log(`  `);
-      // console.log(`  `);
-
-
-      // //#region endTimes_Sepolia AUTOMATION 2
-      // const endTimes_Sepolia = await get_endTimes(CampaignManager_Sepolia); // get campaign manager start times
-      // console.log(`SEPOLIA: endTimes_Sepolia: `,endTimes_Sepolia);
-
-      // if (endTimes_Sepolia.length > 0) {
-
-      //   let ready_endTimeIndex, ready_endTime, ready_campaign_uuid;
-
-      //   console.log("CHECK POINT 1 endTimes_Sepolia");
-        
-      //   for (let i=0; i<endTimes_Sepolia.length; i++) {
-
-      //     if (latestBlockTime >= endTimes_Sepolia[i]) {
-      //       ready_endTimeIndex = i; ready_endTime=endTimes_Sepolia[i];
-      //       console.log(`   SEPOLIA: Campaign with endTime: ${ready_endTime} and index: ${ready_endTimeIndex} is ready to end`);
-      //       break;
-      //     }
-
-      //   }
-
-      //   console.log(`CHECK POINT 2 endTimes_Sepolia ready_startTimeIndex: ${ready_endTimeIndex} ready_endTime: ${ready_endTime}`);
-
-
-      //   if (ready_endTime > 0) {
-
-      //     console.log("CHECK POINT 3 endTimes_Sepolia");
-
-      //     const activeCampaignUIDs = await getActiveCampaignUIDs(CampaignManager_Sepolia);  //get active campaigns
-
-      //     console.log("CHECK POINT 4 endTimes_Sepolia");
-
-      //     for (let i=0; i<activeCampaignUIDs.length; i++) {
-      //       const campaign_uuid = activeCampaignUIDs[i];
-      //       const campaignSpecs = await get_Campaign_Specs(CampaignManager_Sepolia, campaign_uuid);
-      //       const campaignEndTime = Number(`${campaignSpecs.endTime}`)
-      //       console.log(`   SEPOLIA: campaignEndTime: ${campaignEndTime}`);
-
-      //       console.log("CHECK POINT 5 endTimes_Sepolia");
-
-      //       if (campaignEndTime <= ready_endTime) {
-      //           console.log(`   SEPOLIA: Campaign with endTime: ${campaignEndTime} and campaign_uuid: ${campaign_uuid} is ready to end`);
-      //           ready_campaign_uuid = `${campaign_uuid}`;
-      //           break;
-      //       }
-
-      //       console.log("CHECK POINT 6 endTimes_Sepolia");
-
-      //     }
-
-
-      //     console.log("CHECK POINT 7 endTimes_Sepolia");
-
-      //     if (ready_campaign_uuid) {
-      //           console.log(`   SEPOLIA: Campaign with campaign_uuid: ${ready_campaign_uuid} is ready to run checkActiveCampainStatus`);
-
-      //           const response = await checkActiveCampainStatus(CampaignManager_Sepolia, ready_campaign_uuid);
-      //           console.log(`   checkActiveCampainStatus response: `,response);
-
-
-      //           if (response.msg === "OK") {
-      //             console.log(`   deleteStartOrEndTime will run`);
-      //             const response2 = await deleteStartOrEndTime(CampaignManager_Sepolia, false, ready_endTimeIndex);
-      //             console.log(`   deleteStartOrEndTime response2: `,response2);
-
-      //           } else console.log(`    SEPOLIA: checkActiveCampainStatus failed for campaign_uuid: ${ready_campaign_uuid} deleteStartOrEndTime will not run`);
-                
-      //     } else console.log(`SEPOLIA: No Campaign is ready to end`);
-
-      //     console.log("CHECK POINT 8 endTimes_Sepolia");
-
-      //   } else console.log(`SEPOLIA ready_endTime is null ready_endTime: ${ready_endTime} ready_endTimeIndex: ${ready_endTimeIndex}`);
-        
-
-      //   console.log("*** CHECK POINT FINAL for endTimes_Sepolia ***");
-      // } else console.log(`SEPOLIA: endTimes_Sepolia is 0 length. No Active Campaigns`);
-      // //#endregion
-
-
-      // console.log(`  `);
-      // console.log(`  `);
-
-
-      // //#region Expired Campaigns AUTOMATION 3
-      // console.log(`SEPOLIA: Expired Campaigns`);
-      // const expiredCampaignUIDs = await getExpiredCampaignUIDs(CampaignManager_Sepolia); 
-      // console.log(`SEPOLIA: expiredCampaignUIDs: `,expiredCampaignUIDs);
-
-      // if (expiredCampaignUIDs.length > 0) {
-      //   console.log(`CHECK POINT 1 SEPOLIA: Expired Campaigns are ${expiredCampaignUIDs.length}`);
-
-      //   for (let i=0; i<expiredCampaignUIDs.length; i++) {
-      //     const campaign_uuid = expiredCampaignUIDs[i];
-      //     console.log(`CHECK POINT 2 SEPOLIA expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`);
-
-      //     const is_CampaignDistributionComplete = await isCampaignDistributionComplete(CampaignManager_Sepolia, campaign_uuid);
-      //     console.log(`CHECK POINT 3 SEPOLIA: Expired campaign_uuid: ${campaign_uuid} is_CampaignDistributionComplete: ${is_CampaignDistributionComplete}`);
-
-      //     // NOT NEEDED
-      //     // if (is_CampaignDistributionComplete) {
-      //     //   console.log(`CHECK POINT 4A SEPOLIA: Expired Campaign with is_CampaignDistributionComplete: ${is_CampaignDistributionComplete} and campaign_uuid: ${campaign_uuid} is ready to checkExpiredCampainStatus`);
-      //     //   const response = await checkExpiredCampainStatus(CampaignManager_Sepolia, campaign_uuid);
-      //     //   console.log(`   checkExpiredCampainStatus response: `,response);
-      //     // } 
-          
-      //     if (!is_CampaignDistributionComplete)
-      //     {
-      //       console.log(`CHECK POINT 4 SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with is_CampaignDistributionComplete: ${is_CampaignDistributionComplete} will calculateDistributions`);
-      //       const response = await calculateDistributions(CampaignManager_Sepolia, campaign_uuid);
-      //       console.log(`   calculateDistributions response: `,response);
-      //     }
-
-      //     console.log(`CHECK POINT 5 SEPOLIA expiredCampaignUIDs[i] campaign_uuid: ${campaign_uuid} has finished calculateDistributions`);
-      //   }
-
-      //   console.log(`CHECK POINT 6 SEPOLIA End of Expired Campaigns Section`); 
-
-      // } else console.log(`SEPOLIA: No Expired Campaigns`);
-      // //#endregion
-
-
-      // console.log(`  `);
-      // console.log(`  `);
-  
-
-      // //#region Ready For Payment Campaigns AUTOMATION 4  
-      // console.log(`SEPOLIA: Ready For Payment Campaigns`);
-      // let readyFroPaymentCampaignUIDs = await getReadyFroPaymentCampaignUIDs(CampaignManager_Sepolia); 
-      // console.log(`SEPOLIA: readyFroPaymentCampaignUIDs: `,readyFroPaymentCampaignUIDs);
-
-      // if (readyFroPaymentCampaignUIDs.length > 0) {
-      //   console.log(`CHECK POINT 1 SEPOLIA: Ready For Payment Campaigns are ${readyFroPaymentCampaignUIDs.length}`);
-
-
-
-      //   for (let i=0; i<readyFroPaymentCampaignUIDs.length; i++) {
-      //     const campaign_uuid = readyFroPaymentCampaignUIDs[i];
-      //     console.log(`CHECK POINT 2 SEPOLIA readyFroPaymentCampaignUIDs[i] campaign_uuid: ${campaign_uuid}`);
-
-      //     const isCampaignPaymentsComplete = await isCampaignPaymentsComplete(CampaignManager_Sepolia, campaign_uuid);
-      //     console.log(`CHECK POINT 3 SEPOLIA: Ready For Payment campaign_uuid: ${campaign_uuid} isCampaignPaymentsComplete: ${isCampaignPaymentsComplete}`);
-          
-      //     if (!isCampaignPaymentsComplete)
-      //     {
-      //       console.log(`CHECK POINT 4A SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with isCampaignPaymentsComplete: ${isCampaignPaymentsComplete} will makePayments`);
-      //       const response = await makePayments(CampaignManager_Sepolia, campaign_uuid);
-      //       console.log(`   makePayments response: `,response);
-      //     }
-      //     else if (isCampaignPaymentsComplete || campaign_uuid.state==4) {
-      //       console.log(`CHECK POINT 4B SEPOLIA: Campaign with campaign_uuid: ${campaign_uuid} with isCampaignPaymentsComplete: ${isCampaignPaymentsComplete} and  campaign_uuid.state: ${campaign_uuid.state} will move to completedCampaignUIDs`);
-      //       const response = await checkReadyForPaymentStatus(CampaignManager_Sepolia, campaign_uuid);
-      //       console.log(`   checkReadyForPaymentStatus response: `,response);
-      //     }
-
-      //     console.log(`CHECK POINT 5 SEPOLIA Ready For Payment campaign_uuid: ${campaign_uuid} has made payments`);
-      //   }
-
-      //   console.log(`CHECK POINT 6 SEPOLIA End of  Ready For Payment Campaigns Section`); 
-
-      // } else console.log(`SEPOLIA: No Ready For Payment Campaigns`);
-      // //#endregion
-
-
-      // console.log(`  `);
-      // console.log(`  `);
-
-
-      // //#region SquawkProcessor processSquawkData  AUTOMATION 5   
-      // console.log(`SEPOLIA: SquawkProcessor`);
-      // const {lastProcessedIndex, nonce} = await get_SquawkProcessor_nonce_lastProcessedIndex(SquawkProcessor_Sepolia); 
-      // console.log(`SEPOLIA: SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`);
-
-      // if (nonce >=1 && (lastProcessedIndex===0 || lastProcessedIndex+1 < nonce)) {
-      //   console.log(`CHECK POINT 1 SEPOLIA: SquawkProcessor lastProcessedIndex: ${lastProcessedIndex} nonce: ${nonce}`);
-      //   const response = await processSquawkData(SquawkProcessor_Sepolia);
-      //   console.log(`CHECK POINT 2 SEPOLIA: processSquawkData response: `,response);
-      // } else console.log(`SEPOLIA: SquawkProcessor has no fresh data to process`);
-      // //#endregion
-
-
-      // console.log(`  `);
-      // console.log(`  `);
-      // //#endregion Sepolia
-      //#endregion IF THE runAutomations WORKS THEN THE ABOVE CODE WILL BE REMOVED
+  console.log(`THIS PRINTS AT THE END OF PROCESSING DATA`);
 
 
 
       setTimeout(() => {
         startProcess()
-      },5000);
+      },10000);
   }  
 
 
